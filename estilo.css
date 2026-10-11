@@ -13,3 +13,5 @@ details { background:var(--surface); border:1px solid var(--border); border-radi
 summary { cursor:pointer; font-weight:600; color:var(--text); }
 footer { margin-top:40px; font-size:13px; color:var(--muted); border-top:1px solid var(--border); padding-top:16px; }
 table { width:100%; border-collapse:collapse; font-size:14px; } td, th { border-bottom:1px solid var(--border); padding:8px 6px; text-align:left; vertical-align:top; color:var(--muted); } th { color:var(--text); }
+.langs { text-align:right; font-size:13px; color:var(--muted); margin-bottom:12px; }
+.langs strong { color:var(--text); }
