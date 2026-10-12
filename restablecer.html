@@ -46,13 +46,13 @@
   var T = {
     es: { title: 'Nueva contraseña', intro: 'Escribe tu nueva contraseña para NutriFit.', l1: 'Nueva contraseña (mínimo 8 caracteres)', l2: 'Repite la contraseña', save: 'Guardar contraseña',
           short: 'La contraseña debe tener al menos 8 caracteres.', diff: 'Las contraseñas no coinciden.', ok: '¡Listo! Tu contraseña se cambió. Ya puedes entrar en la app con la nueva contraseña.',
-          bad: 'Este enlace no es válido o ya venció. En la app toca "¿Olvidaste tu contraseña?" para recibir uno nuevo.', fail: 'No se pudo cambiar la contraseña. Intenta de nuevo o pide un enlace nuevo desde la app.' },
+          bad: 'Este enlace no es válido o ya venció. En la app toca "¿Olvidaste tu contraseña?" para recibir uno nuevo.', same: 'La nueva contraseña debe ser diferente a la que ya tenías. Escribe otra.', weak: 'Esa contraseña es muy débil. Usa una más larga o combina letras, números y símbolos.', fail: 'No se pudo cambiar la contraseña. Intenta de nuevo o pide un enlace nuevo desde la app.' },
     en: { title: 'New password', intro: 'Enter your new NutriFit password.', l1: 'New password (at least 8 characters)', l2: 'Repeat the password', save: 'Save password',
           short: 'The password must be at least 8 characters.', diff: "The passwords don't match.", ok: 'Done! Your password was changed. You can now sign in to the app with your new password.',
-          bad: 'This link is invalid or has expired. In the app, tap "Forgot your password?" to get a new one.', fail: "Couldn't change the password. Try again or request a new link from the app." },
+          bad: 'This link is invalid or has expired. In the app, tap "Forgot your password?" to get a new one.', same: 'Your new password must be different from your current one. Please choose another.', weak: 'That password is too weak. Use a longer one or mix letters, numbers and symbols.', fail: "Couldn't change the password. Try again or request a new link from the app." },
     pt: { title: 'Nova senha', intro: 'Digite sua nova senha do NutriFit.', l1: 'Nova senha (mínimo de 8 caracteres)', l2: 'Repita a senha', save: 'Salvar senha',
           short: 'A senha precisa ter pelo menos 8 caracteres.', diff: 'As senhas não coincidem.', ok: 'Pronto! Sua senha foi alterada. Agora você já pode entrar no app com a nova senha.',
-          bad: 'Este link é inválido ou expirou. No app, toque em "Esqueceu sua senha?" para receber um novo.', fail: 'Não foi possível alterar a senha. Tente de novo ou peça um novo link pelo app.' }
+          bad: 'Este link é inválido ou expirou. No app, toque em "Esqueceu sua senha?" para receber um novo.', same: 'A nova senha precisa ser diferente da atual. Escolha outra.', weak: 'Essa senha é fraca demais. Use uma mais longa ou combine letras, números e símbolos.', fail: 'Não foi possível alterar a senha. Tente de novo ou peça um novo link pelo app.' }
   };
   var q = new URLSearchParams(location.search);
   var lang = q.get('lang') || (navigator.language || 'es').slice(0, 2);
@@ -103,8 +103,15 @@
         form.classList.add('hidden');
         msg.textContent = t.bad;
       } else {
-        msg.textContent = t.fail;
-        btn.disabled = false;
+        // Supabase explica el motivo: misma contraseña (same_password) o contraseña débil (weak_password)
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          var code = (j && (j.error_code || j.code)) || '';
+          var text = ((j && (j.msg || j.message || j.error_description)) || '').toLowerCase();
+          if (code === 'same_password' || text.indexOf('different from the old') >= 0) msg.textContent = t.same;
+          else if (code === 'weak_password' || text.indexOf('weak') >= 0) msg.textContent = t.weak;
+          else msg.textContent = t.fail;
+          btn.disabled = false;
+        });
       }
     }).catch(function () { msg.textContent = t.fail; btn.disabled = false; });
   });
