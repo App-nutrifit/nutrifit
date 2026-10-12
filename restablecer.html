@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>NutriFit · Nueva contraseña</title>
+<link rel="stylesheet" href="estilo.css">
+<style>
+  label { display:block; margin:14px 0 6px; color:var(--text); font-weight:600; }
+  input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--border); background:#0c110c; color:var(--text); font-size:16px; }
+  button.btn { border:0; cursor:pointer; margin-top:18px; width:100%; font-size:16px; }
+  button.btn[disabled] { opacity:.5; cursor:default; }
+  .msg { margin-top:14px; } .err { color:#E24B4A; } .ok { color:var(--green); }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<main>
+  <a class="logo" href="./"><span class="n">Nutri</span><span class="f">Fit</span></a>
+  <h1 id="title"></h1>
+
+  <div class="card">
+    <p id="intro"></p>
+    <form id="form" class="hidden">
+      <label for="p1" id="l1"></label>
+      <input id="p1" type="password" autocomplete="new-password" minlength="8" required>
+      <label for="p2" id="l2"></label>
+      <input id="p2" type="password" autocomplete="new-password" minlength="8" required>
+      <button class="btn" id="save" type="submit"></button>
+    </form>
+    <p id="msg" class="msg"></p>
+  </div>
+
+  <footer>NutriFit · <a href="./">Soporte · Support · Suporte</a></footer>
+</main>
+
+<script>
+// Página para poner una contraseña nueva desde el enlace del correo "Olvidé mi contraseña".
+// Supabase manda aquí al usuario con el token de recuperación en el # de la dirección.
+// La clave "anon" es pública (es la misma que va dentro de la app); la seguridad la da el token del correo.
+(function () {
+  var SUPABASE_URL = 'https://liquboxfszhoybhutacp.supabase.co';
+  var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpcXVib3hmc3pob3liaHV0YWNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNzA2MDMsImV4cCI6MjA5MDk0NjYwM30.PW-xYDfYaRFK1ArRf7BiFQLOv-vHKdz6P3ZEZkjLRt0';
+
+  var T = {
+    es: { title: 'Nueva contraseña', intro: 'Escribe tu nueva contraseña para NutriFit.', l1: 'Nueva contraseña (mínimo 8 caracteres)', l2: 'Repite la contraseña', save: 'Guardar contraseña',
+          short: 'La contraseña debe tener al menos 8 caracteres.', diff: 'Las contraseñas no coinciden.', ok: '¡Listo! Tu contraseña se cambió. Ya puedes entrar en la app con la nueva contraseña.',
+          bad: 'Este enlace no es válido o ya venció. En la app toca "¿Olvidaste tu contraseña?" para recibir uno nuevo.', fail: 'No se pudo cambiar la contraseña. Intenta de nuevo o pide un enlace nuevo desde la app.' },
+    en: { title: 'New password', intro: 'Enter your new NutriFit password.', l1: 'New password (at least 8 characters)', l2: 'Repeat the password', save: 'Save password',
+          short: 'The password must be at least 8 characters.', diff: "The passwords don't match.", ok: 'Done! Your password was changed. You can now sign in to the app with your new password.',
+          bad: 'This link is invalid or has expired. In the app, tap "Forgot your password?" to get a new one.', fail: "Couldn't change the password. Try again or request a new link from the app." },
+    pt: { title: 'Nova senha', intro: 'Digite sua nova senha do NutriFit.', l1: 'Nova senha (mínimo de 8 caracteres)', l2: 'Repita a senha', save: 'Salvar senha',
+          short: 'A senha precisa ter pelo menos 8 caracteres.', diff: 'As senhas não coincidem.', ok: 'Pronto! Sua senha foi alterada. Agora você já pode entrar no app com a nova senha.',
+          bad: 'Este link é inválido ou expirou. No app, toque em "Esqueceu sua senha?" para receber um novo.', fail: 'Não foi possível alterar a senha. Tente de novo ou peça um novo link pelo app.' }
+  };
+  var q = new URLSearchParams(location.search);
+  var lang = q.get('lang') || (navigator.language || 'es').slice(0, 2);
+  if (!T[lang]) lang = 'es';
+  var t = T[lang];
+  document.documentElement.lang = lang === 'pt' ? 'pt-BR' : lang;
+  document.title = 'NutriFit · ' + t.title;
+  ['title', 'intro', 'l1', 'l2', 'save'].forEach(function (id) { document.getElementById(id).textContent = t[id]; });
+
+  var hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+  var token = hash.get('access_token');
+  var type = hash.get('type');
+  var msg = document.getElementById('msg');
+  var form = document.getElementById('form');
+
+  // Quita el token de la barra de direcciones (no queda en el historial ni se comparte por error)
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+
+  if (!token || (type && type !== 'recovery') || hash.get('error')) {
+    document.getElementById('intro').textContent = '';
+    msg.className = 'msg err';
+    msg.textContent = t.bad;
+    return;
+  }
+  form.classList.remove('hidden');
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var p1 = document.getElementById('p1').value;
+    var p2 = document.getElementById('p2').value;
+    msg.className = 'msg err';
+    if (p1.length < 8) { msg.textContent = t.short; return; }
+    if (p1 !== p2) { msg.textContent = t.diff; return; }
+    var btn = document.getElementById('save');
+    btn.disabled = true;
+    msg.textContent = '';
+    fetch(SUPABASE_URL + '/auth/v1/user', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ password: p1 })
+    }).then(function (r) {
+      if (r.ok) {
+        form.classList.add('hidden');
+        document.getElementById('intro').textContent = '';
+        msg.className = 'msg ok';
+        msg.textContent = t.ok;
+      } else if (r.status === 401 || r.status === 403) {
+        form.classList.add('hidden');
+        msg.textContent = t.bad;
+      } else {
+        msg.textContent = t.fail;
+        btn.disabled = false;
+      }
+    }).catch(function () { msg.textContent = t.fail; btn.disabled = false; });
+  });
+})();
+</script>
+</body>
+</html>
