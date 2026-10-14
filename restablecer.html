@@ -13,6 +13,11 @@
   button.btn[disabled] { opacity:.5; cursor:default; }
   .msg { margin-top:14px; } .err { color:#E24B4A; } .ok { color:var(--green); }
   .hidden { display:none; }
+  .meter { margin-top:8px; } .meter.hidden { display:none; }
+  .bars { display:flex; gap:6px; margin-bottom:6px; }
+  .bars span { flex:1; height:5px; border-radius:3px; background:rgba(255,255,255,.1); transition:background .2s; }
+  .meter p { margin:0; font-size:13px; color:var(--muted, #9aa09a); }
+  .meter b { font-weight:700; }
 </style>
 </head>
 <body>
@@ -25,6 +30,7 @@
     <form id="form" class="hidden">
       <label for="p1" id="l1"></label>
       <input id="p1" type="password" autocomplete="new-password" minlength="8" required>
+      <div class="meter hidden" id="meter"><div class="bars"><span></span><span></span><span></span></div><p id="mtext"></p></div>
       <label for="p2" id="l2"></label>
       <input id="p2" type="password" autocomplete="new-password" minlength="8" required>
       <button class="btn" id="save" type="submit"></button>
@@ -46,13 +52,16 @@
   var T = {
     es: { title: 'Nueva contraseña', intro: 'Escribe tu nueva contraseña para NutriFit.', l1: 'Nueva contraseña (mínimo 8 caracteres)', l2: 'Repite la contraseña', save: 'Guardar contraseña',
           short: 'La contraseña debe tener al menos 8 caracteres.', diff: 'Las contraseñas no coinciden.', ok: '¡Listo! Tu contraseña se cambió. Ya puedes entrar en la app con la nueva contraseña.',
-          bad: 'Este enlace no es válido o ya venció. En la app toca "¿Olvidaste tu contraseña?" para recibir uno nuevo.', same: 'La nueva contraseña debe ser diferente a la que ya tenías. Escribe otra.', weak: 'Esa contraseña es muy débil. Usa una más larga o combina letras, números y símbolos.', fail: 'No se pudo cambiar la contraseña. Intenta de nuevo o pide un enlace nuevo desde la app.' },
+          bad: 'Este enlace no es válido o ya venció. En la app toca "¿Olvidaste tu contraseña?" para recibir uno nuevo.', same: 'La nueva contraseña debe ser diferente a la que ya tenías. Escribe otra.', weak: 'Esa contraseña es muy débil. Usa una más larga o combina letras, números y símbolos.', sl: 'Seguridad', s0: 'Débil', s1: 'Regular', s2: 'Segura', tip: 'Usa 12+ caracteres y mezcla mayúsculas, números o símbolos.',
+          fail: 'No se pudo cambiar la contraseña. Intenta de nuevo o pide un enlace nuevo desde la app.' },
     en: { title: 'New password', intro: 'Enter your new NutriFit password.', l1: 'New password (at least 8 characters)', l2: 'Repeat the password', save: 'Save password',
           short: 'The password must be at least 8 characters.', diff: "The passwords don't match.", ok: 'Done! Your password was changed. You can now sign in to the app with your new password.',
-          bad: 'This link is invalid or has expired. In the app, tap "Forgot your password?" to get a new one.', same: 'Your new password must be different from your current one. Please choose another.', weak: 'That password is too weak. Use a longer one or mix letters, numbers and symbols.', fail: "Couldn't change the password. Try again or request a new link from the app." },
+          bad: 'This link is invalid or has expired. In the app, tap "Forgot your password?" to get a new one.', same: 'Your new password must be different from your current one. Please choose another.', weak: 'That password is too weak. Use a longer one or mix letters, numbers and symbols.', sl: 'Strength', s0: 'Weak', s1: 'Fair', s2: 'Strong', tip: 'Use 12+ characters and mix uppercase, numbers or symbols.',
+          fail: "Couldn't change the password. Try again or request a new link from the app." },
     pt: { title: 'Nova senha', intro: 'Digite sua nova senha do NutriFit.', l1: 'Nova senha (mínimo de 8 caracteres)', l2: 'Repita a senha', save: 'Salvar senha',
           short: 'A senha precisa ter pelo menos 8 caracteres.', diff: 'As senhas não coincidem.', ok: 'Pronto! Sua senha foi alterada. Agora você já pode entrar no app com a nova senha.',
-          bad: 'Este link é inválido ou expirou. No app, toque em "Esqueceu sua senha?" para receber um novo.', same: 'A nova senha precisa ser diferente da atual. Escolha outra.', weak: 'Essa senha é fraca demais. Use uma mais longa ou combine letras, números e símbolos.', fail: 'Não foi possível alterar a senha. Tente de novo ou peça um novo link pelo app.' }
+          bad: 'Este link é inválido ou expirou. No app, toque em "Esqueceu sua senha?" para receber um novo.', same: 'A nova senha precisa ser diferente da atual. Escolha outra.', weak: 'Essa senha é fraca demais. Use uma mais longa ou combine letras, números e símbolos.', sl: 'Segurança', s0: 'Fraca', s1: 'Média', s2: 'Forte', tip: 'Use 12+ caracteres e misture maiúsculas, números ou símbolos.',
+          fail: 'Não foi possível alterar a senha. Tente de novo ou peça um novo link pelo app.' }
   };
   var q = new URLSearchParams(location.search);
   var lang = q.get('lang') || (navigator.language || 'es').slice(0, 2);
@@ -78,6 +87,32 @@
     return;
   }
   form.classList.remove('hidden');
+
+  // Barra de seguridad (misma lógica que lib/passwordStrength.ts de la app)
+  var COMMON = ['12345678','123456789','1234567890','87654321','11111111','00000000','password','password1','contraseña','contrasena','qwertyui','qwerty123','abcd1234','12345678a','iloveyou','nutrifit','nutrifit1','senha123'];
+  function strength(pw) {
+    if (pw.length < 8) return 0;
+    if (COMMON.indexOf(pw.toLowerCase()) >= 0 || /^(.)\1+$/.test(pw)) return 0;
+    var types = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter(function (r) { return r.test(pw); }).length;
+    if ((pw.length >= 12 && types >= 2) || types >= 3) return 2;
+    if (types >= 2 || pw.length >= 14) return 1;
+    return 0;
+  }
+  var COLORS = ['#E24B4A', '#F5A623', '#3DB83A'];
+  var meter = document.getElementById('meter');
+  var bars = meter.querySelectorAll('.bars span');
+  var mtext = document.getElementById('mtext');
+  document.getElementById('p1').addEventListener('input', function (e) {
+    var pw = e.target.value;
+    if (!pw) { meter.classList.add('hidden'); return; }
+    meter.classList.remove('hidden');
+    var lv = strength(pw);
+    for (var i = 0; i < 3; i++) bars[i].style.background = i <= lv ? COLORS[lv] : '';
+    mtext.textContent = '';
+    mtext.appendChild(document.createTextNode(t.sl + ': '));
+    var b = document.createElement('b'); b.style.color = COLORS[lv]; b.textContent = t['s' + lv]; mtext.appendChild(b);
+    if (lv < 2) mtext.appendChild(document.createTextNode('  ·  ' + t.tip));
+  });
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
