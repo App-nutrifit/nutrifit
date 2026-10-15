@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>NutriFit · Resultados de pruebas</title>
+<link rel="stylesheet" href="estilo.css">
+<style>
+  main { max-width:980px; }
+  label { display:block; margin:12px 0 6px; color:var(--text); font-weight:600; font-size:14px; }
+  input { width:100%; padding:11px 13px; border-radius:11px; border:1px solid var(--border); background:#0c110c; color:var(--text); font:inherit; font-size:16px; }
+  button { font:inherit; cursor:pointer; }
+  .btn { border:0; font-size:15px; } .btn[disabled] { opacity:.5; }
+  .btn.ghost { background:var(--surface); color:var(--text); border:1px solid var(--border); }
+  .link { background:none; border:0; color:var(--green); padding:0; text-decoration:underline; font-size:14px; }
+  .hidden { display:none !important; } .err { color:#E24B4A; }
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:16px 0; }
+  .tile { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px; }
+  .tile b { display:block; font-size:28px; color:var(--text); line-height:1.1; font-variant-numeric:tabular-nums; }
+  .tile span { font-size:13px; color:var(--muted); }
+  .tile.bad b { color:#ff8b8a; } .tile.good b { color:var(--green); }
+  .scroll { overflow-x:auto; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .pill { display:inline-block; border-radius:12px; padding:1px 9px; font-size:12px; font-weight:700; }
+  .p-bloq { background:rgba(226,75,74,.18); color:#ff8b8a; } .p-imp { background:rgba(245,166,35,.16); color:#F5A623; }
+  .p-det { background:rgba(255,255,255,.08); color:var(--muted); } .p-ok { background:rgba(61,184,58,.16); color:var(--green); }
+  .fail { border-top:1px solid var(--border); padding:10px 0; }
+  .fail:first-child { border-top:0; }
+  .fail .who { font-size:13px; color:var(--muted); }
+  .fail .note { color:var(--text); margin:4px 0 0; white-space:pre-wrap; }
+  .tid { color:var(--green); font-weight:800; margin-right:6px; }
+  .mini { display:inline-flex; height:8px; width:120px; background:rgba(255,255,255,.08); border-radius:4px; overflow:hidden; vertical-align:middle; }
+  .mini i { display:block; height:100%; }
+  .answer { border-top:1px solid var(--border); padding:8px 0; color:var(--text); white-space:pre-wrap; }
+  .answer small { display:block; color:var(--muted); }
+  .top { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+</style>
+</head>
+<body>
+<main>
+  <a class="logo" href="./"><span class="n">Nutri</span><span class="f">Fit</span></a>
+  <h1>Resultados de pruebas · build 12</h1>
+
+  <div class="card" id="loginCard">
+    <p style="margin-top:0">Solo para el administrador. Entra con tu cuenta de NutriFit.</p>
+    <form id="loginForm">
+      <label for="email">Correo</label><input id="email" type="email" autocomplete="email" required>
+      <label for="pass">Contraseña</label><input id="pass" type="password" autocomplete="current-password" required>
+      <button class="btn" style="margin-top:14px;width:100%" id="loginBtn" type="submit">Entrar</button>
+    </form>
+    <p id="msg" class="err"></p>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="top">
+      <p class="user" style="margin:0">Admin: <strong id="who"></strong> · <button class="link" id="logout" type="button">Salir</button></p>
+      <div><button class="btn ghost" id="reload" type="button">Actualizar</button> <button class="btn" id="csv" type="button">Descargar CSV</button></div>
+    </div>
+    <div class="tiles" id="tiles"></div>
+
+    <div class="card"><h2 style="margin-top:0">Fallas reportadas</h2><p style="font-size:13px;margin-top:-4px">Ordenadas por gravedad: bloqueantes primero.</p><div id="fails"></div></div>
+
+    <div class="card"><h2 style="margin-top:0">Avance por tester</h2><div class="scroll"><table id="testers"></table></div></div>
+
+    <div class="card"><h2 style="margin-top:0">Resultado por prueba</h2><div class="scroll"><table id="byTest"></table></div></div>
+
+    <div class="card"><h2 style="margin-top:0">Encuesta</h2><div id="survey"></div></div>
+  </div>
+  <footer>NutriFit · página privada (solo admin)</footer>
+</main>
+
+<script src="pruebas.js"></script>
+<script>
+(function () {
+  var D = NF.DATA, rows = [];
+  var $ = function (id) { return document.getElementById(id); };
+  var tests = []; D.sections.forEach(function (s) { s.tests.forEach(function (t) { tests.push(t); }); });
+  var SEV = { bloq: ['Bloqueante', 'p-bloq', 0], imp: ['Importante', 'p-imp', 1], det: ['Detalle', 'p-det', 2] };
+
+  $('loginForm').addEventListener('submit', function (e) {
+    e.preventDefault(); $('loginBtn').disabled = true; $('msg').textContent = '';
+    NF.login($('email').value.trim().toLowerCase(), $('pass').value).then(start)
+      .catch(function (err) { $('msg').textContent = err.message; })
+      .then(function () { $('loginBtn').disabled = false; });
+  });
+  $('logout').onclick = function () { NF.logout(); location.reload(); };
+  $('reload').onclick = function () { load(); };
+  $('csv').onclick = downloadCsv;
+
+  function start() {
+    return NF.rest('POST', 'rpc/is_app_admin', {}).then(function (isAdmin) {
+      if (!isAdmin) { NF.logout(); $('msg').textContent = 'Esta cuenta no tiene permiso para ver los resultados.'; return; }
+      $('who').textContent = NF.user().email;
+      $('loginCard').classList.add('hidden'); $('app').classList.remove('hidden');
+      return load();
+    }).catch(function (err) {
+      if (err.message === 'sin sesion') { NF.logout(); return; }
+      $('msg').textContent = 'No se pudo comprobar el permiso (¿ya corriste setup-pruebas.sql?). ' + err.message;
+    });
+  }
+
+  function load() {
+    return NF.rest('GET', 'tester_results?select=*&order=updated_at.desc').then(function (r) { rows = r || []; draw(); });
+  }
+
+  function name(r) { return (r.info && r.info.nombre) || r.email; }
+  function ans(r, id) { return (r.answers || {})[id] || {}; }
+
+  function draw() {
+    var fails = [], done = 0, finished = 0;
+    rows.forEach(function (r) {
+      if (r.finished_at) finished++;
+      tests.forEach(function (t) {
+        var a = ans(r, t.id);
+        if (a.r) done++;
+        if (a.r === 'falla') fails.push({ t: t, r: r, a: a });
+      });
+    });
+    var bloq = fails.filter(function (f) { return f.a.sev === 'bloq'; }).length;
+    $('tiles').innerHTML =
+      tile(rows.length, 'testers que entraron') + tile(finished, 'dijeron "terminé"', 'good') +
+      tile(rows.length ? Math.round(done / (rows.length * tests.length) * 100) + '%' : '—', 'pruebas respondidas') +
+      tile(fails.length, 'fallas reportadas', fails.length ? 'bad' : '') + tile(bloq, 'bloqueantes', bloq ? 'bad' : '');
+
+    // Fallas
+    fails.sort(function (x, y) {
+      var a = SEV[x.a.sev] ? SEV[x.a.sev][2] : 3, b = SEV[y.a.sev] ? SEV[y.a.sev][2] : 3;
+      return a - b || tests.indexOf(x.t) - tests.indexOf(y.t);
+    });
+    $('fails').innerHTML = fails.length ? fails.map(function (f) {
+      var s = SEV[f.a.sev];
+      return '<div class="fail"><div><span class="tid">' + f.t.id + '</span><strong>' + esc(f.t.t) + '</strong> ' +
+        (s ? '<span class="pill ' + s[1] + '">' + s[0] + '</span>' : '<span class="pill p-det">Sin gravedad</span>') + '</div>' +
+        '<div class="who">' + esc(name(f.r)) + ' · ' + esc((f.r.info || {}).telefono || '') + ' · ' + esc((f.r.info || {}).version || '') + '</div>' +
+        (f.a.nota ? '<p class="note">' + esc(f.a.nota) + '</p>' : '<p class="note" style="color:var(--muted)">(sin descripción)</p>') + '</div>';
+    }).join('') : '<p>Nadie ha reportado fallas todavía.</p>';
+
+    // Testers
+    $('testers').innerHTML = '<tr><th>Tester</th><th>Teléfono</th><th>Versión</th><th class="num">Avance</th><th class="num">Fallas</th><th>Terminó</th><th>Última vez</th></tr>' +
+      rows.map(function (r) {
+        var d = tests.filter(function (t) { return ans(r, t.id).r; }).length;
+        var f = tests.filter(function (t) { return ans(r, t.id).r === 'falla'; }).length;
+        return '<tr><td><strong>' + esc(name(r)) + '</strong><br><small>' + esc(r.email) + '</small></td><td>' + esc((r.info || {}).telefono || '') +
+          '<br><small>' + esc((r.info || {}).sistema || '') + '</small></td><td>' + esc((r.info || {}).version || '') + '</td>' +
+          '<td class="num">' + d + ' / ' + tests.length + '</td><td class="num">' + f + '</td><td>' + (r.finished_at ? '<span class="pill p-ok">Sí</span>' : '—') +
+          '</td><td>' + fmtDate(r.updated_at) + '</td></tr>';
+      }).join('');
+
+    // Por prueba
+    var n = rows.length || 1;
+    $('byTest').innerHTML = '<tr><th>Prueba</th><th class="num">Funciona</th><th class="num">Falla</th><th class="num">No pudo</th><th></th></tr>' +
+      tests.map(function (t) {
+        var c = { ok: 0, falla: 0, na: 0 };
+        rows.forEach(function (r) { var a = ans(r, t.id); if (c[a.r] != null) c[a.r]++; });
+        return '<tr><td><span class="tid">' + t.id + '</span>' + esc(t.t) + '</td><td class="num">' + c.ok + '</td><td class="num"' +
+          (c.falla ? ' style="color:#ff8b8a;font-weight:700"' : '') + '>' + c.falla + '</td><td class="num">' + c.na + '</td><td>' +
+          '<span class="mini"><i style="width:' + c.ok / n * 100 + '%;background:#3DB83A"></i><i style="width:' + c.falla / n * 100 + '%;background:#E24B4A"></i><i style="width:' + c.na / n * 100 + '%;background:#F5A623"></i></span></td></tr>';
+      }).join('');
+
+    // Encuesta
+    var html = '<table><tr><th>Pregunta (1 a 5)</th><th class="num">Promedio</th><th class="num">Respuestas</th></tr>';
+    D.scale.forEach(function (q) {
+      var v = rows.map(function (r) { return (r.survey || {})[q.id]; }).filter(function (x) { return typeof x === 'number'; });
+      var avg = v.length ? (v.reduce(function (a, b) { return a + b; }, 0) / v.length).toFixed(1) : '—';
+      html += '<tr><td><span class="tid">' + q.id + '</span>' + esc(q.q) + '</td><td class="num"><strong>' + avg + '</strong></td><td class="num">' + v.length + '</td></tr>';
+    });
+    html += '</table>';
+    D.open.forEach(function (q) {
+      var list = rows.filter(function (r) { return ((r.survey || {})[q.id] || '').trim(); });
+      html += '<h3 style="margin:22px 0 4px;font-size:15px"><span class="tid">' + q.id + '</span>' + esc(q.q) + '</h3>' +
+        (list.length ? list.map(function (r) { return '<div class="answer"><small>' + esc(name(r)) + '</small>' + esc(r.survey[q.id]) + '</div>'; }).join('') : '<p>Sin respuestas todavía.</p>');
+    });
+    $('survey').innerHTML = html;
+  }
+
+  function tile(v, label, cls) { return '<div class="tile ' + (cls || '') + '"><b>' + v + '</b><span>' + label + '</span></div>'; }
+  function fmtDate(s) { if (!s) return ''; var d = new Date(s); return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }); }
+
+  function downloadCsv() {
+    var q = function (s) { return '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"'; };
+    var out = [['tester', 'correo', 'telefono', 'sistema', 'version', 'prueba', 'titulo', 'resultado', 'gravedad', 'nota'].join(',')];
+    rows.forEach(function (r) {
+      var i = r.info || {};
+      tests.forEach(function (t) {
+        var a = ans(r, t.id);
+        if (!a.r && !a.nota) return;
+        out.push([name(r), r.email, i.telefono, i.sistema, i.version, t.id, t.t, a.r, SEV[a.sev] ? SEV[a.sev][0] : '', a.nota].map(q).join(','));
+      });
+      D.scale.concat(D.open).forEach(function (sq) {
+        var v = (r.survey || {})[sq.id];
+        if (v != null && v !== '') out.push([name(r), r.email, i.telefono, i.sistema, i.version, sq.id, sq.q, v, '', ''].map(q).join(','));
+      });
+    });
+    var blob = new Blob(['﻿' + out.join('\n')], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'nutrifit_pruebas_build12.csv'; a.click();
+  }
+
+  if (NF.load() && NF.user()) start();
+})();
+</script>
+</body>
+</html>

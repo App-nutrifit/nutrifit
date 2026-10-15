@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>NutriFit · Pruebas del build 12</title>
+<link rel="stylesheet" href="estilo.css">
+<style>
+  main { max-width:720px; }
+  label { display:block; margin:12px 0 6px; color:var(--text); font-weight:600; font-size:14px; }
+  input, textarea { width:100%; padding:11px 13px; border-radius:11px; border:1px solid var(--border); background:#0c110c; color:var(--text); font:inherit; font-size:16px; }
+  textarea { min-height:70px; resize:vertical; }
+  button { font:inherit; cursor:pointer; }
+  .btn { border:0; font-size:16px; }
+  .btn.full { width:100%; margin-top:16px; }
+  .btn[disabled] { opacity:.5; cursor:default; }
+  .link { background:none; border:0; color:var(--green); padding:0; text-decoration:underline; font-size:14px; }
+  .hidden { display:none !important; }
+  .err { color:#E24B4A; } .ok { color:var(--green); }
+  .bar { position:sticky; top:0; z-index:5; background:rgba(8,12,8,.96); border-bottom:1px solid var(--border); padding:10px 18px; backdrop-filter:blur(6px); }
+  .bar-in { max-width:720px; margin:0 auto; display:flex; align-items:center; gap:12px; }
+  .prog { flex:1; }
+  .prog-t { font-size:13px; color:var(--muted); display:flex; justify-content:space-between; gap:8px; }
+  .prog-b { height:6px; background:rgba(255,255,255,.08); border-radius:4px; margin-top:5px; overflow:hidden; }
+  .prog-b i { display:block; height:100%; width:0; background:var(--green); transition:width .3s; }
+  .sec h2 { margin-top:6px; }
+  .sec .intro { font-size:13px; margin:-4px 0 6px; }
+  .test { border-top:1px solid var(--border); padding:14px 0; }
+  .test:first-of-type { border-top:0; }
+  .tid { color:var(--green); font-weight:800; margin-right:6px; }
+  .tt { color:var(--text); font-weight:700; }
+  .steps { font-size:14px; margin:4px 0; color:var(--muted); }
+  .expect { font-size:13.5px; color:#8fd68d; margin:2px 0 10px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; }
+  .chip { border:1px solid var(--border); background:var(--surface); color:var(--muted); border-radius:20px; padding:8px 14px; font-size:14px; font-weight:600; }
+  .chip.on-ok { background:rgba(61,184,58,.16); border-color:var(--green); color:var(--green); }
+  .chip.on-bad { background:rgba(226,75,74,.14); border-color:#E24B4A; color:#ff8b8a; }
+  .chip.on-sev { background:rgba(245,166,35,.14); border-color:#F5A623; color:#F5A623; }
+  .chip.sm { padding:6px 11px; font-size:13px; }
+  .more { margin-top:10px; }
+  .more .sevl { font-size:13px; color:var(--muted); margin:2px 0 6px; }
+  .scale { display:flex; gap:6px; margin:8px 0 14px; }
+  .scale .chip { flex:1; text-align:center; padding:9px 0; }
+  .status { font-size:12.5px; white-space:nowrap; }
+  .user { font-size:13px; color:var(--muted); }
+  .done { text-align:center; }
+</style>
+</head>
+<body>
+<div class="bar hidden" id="bar">
+  <div class="bar-in">
+    <div class="prog">
+      <div class="prog-t"><span id="progText">0 de 0 pruebas</span><span class="status" id="saveState"></span></div>
+      <div class="prog-b"><i id="progFill"></i></div>
+    </div>
+  </div>
+</div>
+<main>
+  <a class="logo" href="./"><span class="n">Nutri</span><span class="f">Fit</span></a>
+  <h1>Pruebas del build 12</h1>
+  <p>Gracias por ayudarnos. Esta es la versión que queremos lanzar como 1.0: todo lo que encuentres nos sirve.</p>
+
+  <!-- Entrar -->
+  <div class="card" id="loginCard">
+    <p style="margin-top:0">Entra con el <strong>mismo correo y contraseña de la app NutriFit</strong>. Tus respuestas se guardan solas y puedes seguir otro día, desde el celular o la compu.</p>
+    <form id="loginForm">
+      <label for="email">Correo</label>
+      <input id="email" type="email" autocomplete="email" required>
+      <label for="pass">Contraseña</label>
+      <input id="pass" type="password" autocomplete="current-password" required>
+      <button class="btn full" id="loginBtn" type="submit">Entrar</button>
+    </form>
+    <p id="loginMsg" class="err"></p>
+    <button class="link" id="forgot" type="button">¿Olvidaste tu contraseña?</button>
+  </div>
+
+  <!-- Pruebas -->
+  <div id="app" class="hidden">
+    <p class="user">Entraste como <strong id="who"></strong> · <button class="link" id="logout" type="button">Salir</button></p>
+
+    <details class="card" open>
+      <summary>Antes de empezar (léelo una vez)</summary>
+      <ul>
+        <li><strong>Versión correcta:</strong> al final de Perfil debe decir <strong>Versión 1.0.0 (12)</strong> en iPhone o <strong>(4)</strong> en Android.</li>
+        <li><strong>Usa tu comida real</strong> durante 2 o 3 días. Algunas pruebas dependen de la hora (ej. C3 en la mañana, B8 en la noche).</li>
+        <li><strong>Cuenta de prueba:</strong> A4 (cambiar contraseña) y J1 (eliminar cuenta) hazlas con una cuenta creada solo para eso, nunca con la tuya.</li>
+        <li><strong>Marca cada prueba:</strong> "Funciona" o "Falla". Si falla, di qué tan grave es y qué pasó. Las capturas o videos mándalos por WhatsApp a Ringo con el número de la prueba.</li>
+        <li><strong>La IA tiene límite diario:</strong> úsala normal, no repitas una prueba muchas veces.</li>
+        <li>No hace falta terminar en un día: <strong>todo se guarda solo</strong>.</li>
+      </ul>
+    </details>
+
+    <div class="card">
+      <h2 style="margin-top:0">Tus datos</h2>
+      <label for="i_nombre">Tu nombre</label><input id="i_nombre" data-info="nombre">
+      <label for="i_tel">Teléfono y modelo (ej. iPhone 15 / Samsung A54)</label><input id="i_tel" data-info="telefono">
+      <label for="i_sis">Sistema (iOS 26.x / Android 15…)</label><input id="i_sis" data-info="sistema">
+      <label for="i_ver">Versión que sale al final de Perfil</label><input id="i_ver" data-info="version">
+    </div>
+
+    <div id="sections"></div>
+
+    <div class="card" id="surveyCard">
+      <h2 style="margin-top:0">Tu opinión</h2>
+      <p class="intro">Pesa tanto como los errores: nos dice si la app está lista. Del 1 (nada) al 5 (mucho).</p>
+      <div id="survey"></div>
+    </div>
+
+    <div class="card done">
+      <p id="finishText">Cuando hayas probado todo lo que puedas, avísanos aquí.</p>
+      <button class="btn" id="finish" type="button">Terminé las pruebas</button>
+    </div>
+  </div>
+
+  <footer>NutriFit · <a href="./">Soporte</a> · <a href="privacidad.html">Privacidad</a></footer>
+</main>
+
+<script src="pruebas.js"></script>
+<script>
+(function () {
+  var D = NF.DATA;
+  var state = { info: {}, answers: {}, survey: {}, finished_at: null };
+  var total = D.sections.reduce(function (n, s) { return n + s.tests.length; }, 0);
+  var $ = function (id) { return document.getElementById(id); };
+  var BACKUP = function () { return 'nf_pruebas_respaldo_' + (NF.user() || {}).id; };
+
+  // ─── Entrar ───
+  $('loginForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    $('loginBtn').disabled = true; $('loginMsg').textContent = '';
+    NF.login($('email').value.trim().toLowerCase(), $('pass').value)
+      .then(start)
+      .catch(function (err) { $('loginMsg').textContent = err.message; })
+      .then(function () { $('loginBtn').disabled = false; });
+  });
+  $('forgot').addEventListener('click', function () {
+    var em = $('email').value.trim().toLowerCase();
+    if (!em) { $('loginMsg').textContent = 'Escribe tu correo arriba y vuelve a tocar "¿Olvidaste tu contraseña?".'; return; }
+    NF.resetPassword(em).then(function () {
+      $('loginMsg').className = 'ok';
+      $('loginMsg').textContent = 'Si ese correo tiene cuenta, te llegó un enlace para poner una contraseña nueva.';
+    });
+  });
+  $('logout').addEventListener('click', function () { NF.logout(); location.reload(); });
+
+  function start() {
+    var u = NF.user();
+    $('who').textContent = u.email;
+    $('loginCard').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    $('bar').classList.remove('hidden');
+    setSave('Cargando…');
+    return NF.rest('GET', 'tester_results?user_id=eq.' + u.id + '&select=*').then(function (rows) {
+      var row = rows && rows[0];
+      var backup = null;
+      try { backup = JSON.parse(localStorage.getItem(BACKUP()) || 'null'); } catch (e) {}
+      // Si hay un respaldo local más nuevo (no se alcanzó a guardar), se usa ese
+      var src = row;
+      if (backup && (!row || new Date(backup.updated_at) > new Date(row.updated_at))) src = backup;
+      if (src) {
+        state.info = src.info || {}; state.answers = src.answers || {}; state.survey = src.survey || {};
+        state.finished_at = src.finished_at || null;
+      }
+      render();
+      setSave(row ? 'Guardado ✓' : '');
+      if (src === backup && backup) queueSave();
+    }).catch(function (err) {
+      if (err.message === 'sin sesion') { NF.logout(); location.reload(); return; }
+      setSave('Sin conexión'); render();
+    });
+  }
+
+  // ─── Pintar ───
+  function render() {
+    document.querySelectorAll('[data-info]').forEach(function (el) {
+      el.value = state.info[el.dataset.info] || '';
+      el.oninput = function () { state.info[el.dataset.info] = el.value; queueSave(); };
+    });
+    var html = '';
+    D.sections.forEach(function (s) {
+      html += '<div class="card sec"><h2>' + esc(s.code) + ' · ' + esc(s.title) + '</h2>';
+      if (s.intro) html += '<p class="intro">' + esc(s.intro) + '</p>';
+      s.tests.forEach(function (t) {
+        html += '<div class="test" id="t_' + t.id + '"></div>';
+      });
+      html += '</div>';
+    });
+    $('sections').innerHTML = html;
+    D.sections.forEach(function (s) { s.tests.forEach(drawTest); });
+    drawSurvey();
+    progress();
+    $('finishText').textContent = state.finished_at
+      ? '¡Gracias! Ya nos avisaste que terminaste. Si pruebas algo más, se sigue guardando.'
+      : 'Cuando hayas probado todo lo que puedas, avísanos aquí.';
+  }
+
+  function drawTest(t) {
+    var a = state.answers[t.id] || {};
+    var el = $('t_' + t.id);
+    var showMore = a.r === 'falla' || a.open || a.nota;
+    el.innerHTML =
+      '<div><span class="tid">' + t.id + '</span><span class="tt">' + esc(t.t) + '</span></div>' +
+      '<p class="steps">' + esc(t.steps) + '</p>' +
+      (t.expect ? '<p class="expect"><strong style="color:#8fd68d">Debe pasar:</strong> ' + esc(t.expect) + '</p>' : '') +
+      '<div class="row">' +
+        '<button class="chip' + (a.r === 'ok' ? ' on-ok' : '') + '" data-r="ok">✓ Funciona</button>' +
+        '<button class="chip' + (a.r === 'falla' ? ' on-bad' : '') + '" data-r="falla">✗ Falla</button>' +
+        '<button class="chip' + (a.r === 'na' ? ' on-sev' : '') + '" data-r="na">No pude probarla</button>' +
+      '</div>' +
+      (showMore ? '<div class="more">' +
+        (a.r === 'falla' ? '<p class="sevl">¿Qué tan grave?</p><div class="row" style="margin-bottom:8px">' +
+          sevBtn(a, 'bloq', 'Bloqueante') + sevBtn(a, 'imp', 'Importante') + sevBtn(a, 'det', 'Detalle') + '</div>' : '') +
+        '<textarea placeholder="' + (a.r === 'falla' ? '¿Qué pasó? ¿En qué pantalla? ¿Mandaste captura?' : 'Comentario (opcional)') + '">' + esc(a.nota || '') + '</textarea>' +
+      '</div>' : '<button class="link more" data-open="1">Agregar comentario</button>');
+
+    el.querySelectorAll('[data-r]').forEach(function (b) {
+      b.onclick = function () {
+        var cur = state.answers[t.id] || {};
+        cur.r = cur.r === b.dataset.r ? undefined : b.dataset.r;
+        state.answers[t.id] = cur; drawTest(t); progress(); queueSave();
+      };
+    });
+    el.querySelectorAll('[data-sev]').forEach(function (b) {
+      b.onclick = function () {
+        var cur = state.answers[t.id] || {};
+        cur.sev = cur.sev === b.dataset.sev ? undefined : b.dataset.sev;
+        state.answers[t.id] = cur; drawTest(t); queueSave();
+      };
+    });
+    var op = el.querySelector('[data-open]');
+    if (op) op.onclick = function () { var cur = state.answers[t.id] || {}; cur.open = true; state.answers[t.id] = cur; drawTest(t); el.querySelector('textarea').focus(); };
+    var ta = el.querySelector('textarea');
+    if (ta) ta.oninput = function () { var cur = state.answers[t.id] || {}; cur.nota = ta.value; state.answers[t.id] = cur; queueSave(); };
+  }
+  function sevBtn(a, v, label) { return '<button class="chip sm' + (a.sev === v ? ' on-sev' : '') + '" data-sev="' + v + '">' + label + '</button>'; }
+
+  function drawSurvey() {
+    var html = '';
+    D.scale.forEach(function (q) {
+      html += '<label>' + esc(q.id) + ' · ' + esc(q.q) + '</label><div class="scale">';
+      for (var n = 1; n <= 5; n++) html += '<button class="chip' + (state.survey[q.id] === n ? ' on-ok' : '') + '" data-q="' + q.id + '" data-n="' + n + '">' + n + '</button>';
+      html += '</div>';
+    });
+    D.open.forEach(function (q) {
+      html += '<label for="s_' + q.id + '">' + esc(q.id) + ' · ' + esc(q.q) + '</label><textarea id="s_' + q.id + '" data-open-q="' + q.id + '">' + esc(state.survey[q.id] || '') + '</textarea>';
+    });
+    $('survey').innerHTML = html;
+    $('survey').querySelectorAll('[data-q]').forEach(function (b) {
+      b.onclick = function () { var n = Number(b.dataset.n); state.survey[b.dataset.q] = state.survey[b.dataset.q] === n ? null : n; drawSurvey(); queueSave(); };
+    });
+    $('survey').querySelectorAll('[data-open-q]').forEach(function (ta) {
+      ta.oninput = function () { state.survey[ta.dataset.openQ] = ta.value; queueSave(); };
+    });
+  }
+
+  function progress() {
+    var done = Object.keys(state.answers).filter(function (k) { return state.answers[k] && state.answers[k].r; }).length;
+    var fails = Object.keys(state.answers).filter(function (k) { return state.answers[k] && state.answers[k].r === 'falla'; }).length;
+    $('progText').textContent = done + ' de ' + total + ' pruebas' + (fails ? ' · ' + fails + ' con falla' : '');
+    $('progFill').style.width = Math.round(done / total * 100) + '%';
+  }
+
+  // ─── Guardar (solo, 1 segundo después del último cambio) ───
+  var timer = null, saving = false, pending = false;
+  function setSave(t, cls) { var s = $('saveState'); s.textContent = t; s.className = 'status ' + (cls || ''); }
+  function queueSave() {
+    var u = NF.user(); if (!u) return;
+    var snap = { info: state.info, answers: state.answers, survey: state.survey, finished_at: state.finished_at, updated_at: new Date().toISOString() };
+    try { localStorage.setItem(BACKUP(), JSON.stringify(snap)); } catch (e) {}
+    setSave('Guardando…');
+    clearTimeout(timer); timer = setTimeout(saveNow, 1000);
+  }
+  function saveNow() {
+    if (saving) { pending = true; return; }
+    var u = NF.user(); if (!u) return;
+    saving = true;
+    var row = { user_id: u.id, email: u.email, build: '12', info: state.info, answers: state.answers,
+                survey: state.survey, finished_at: state.finished_at, updated_at: new Date().toISOString() };
+    NF.rest('POST', 'tester_results?on_conflict=user_id', row, 'resolution=merge-duplicates,return=minimal')
+      .then(function () { setSave('Guardado ✓', 'ok'); try { localStorage.removeItem(BACKUP()); } catch (e) {} })
+      .catch(function (err) {
+        if (err.message === 'sin sesion') { setSave('Tu sesión venció: vuelve a entrar', 'err'); return; }
+        setSave('Sin conexión: se guardará al volver', 'err');
+        setTimeout(queueSave, 15000);
+      })
+      .then(function () { saving = false; if (pending) { pending = false; saveNow(); } });
+  }
+  window.addEventListener('online', function () { if (NF.user()) queueSave(); });
+
+  $('finish').addEventListener('click', function () {
+    state.finished_at = new Date().toISOString();
+    $('finishText').textContent = '¡Gracias! Ya nos avisaste que terminaste. Si pruebas algo más, se sigue guardando.';
+    queueSave();
+  });
+
+  if (NF.load() && NF.user()) start();
+})();
+</script>
+</body>
+</html>
